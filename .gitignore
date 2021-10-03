@@ -28,3 +28,4 @@ hs_err_pid*
 /build/**
 /.gradle/**
 /mnist/**
+*.model
