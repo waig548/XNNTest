@@ -11,9 +11,9 @@ class Neuron(
     var activate: ActivationFunction
 )
 {
-    fun forward(input: List<Double>): Double
+    fun forward(input: List<Double>): Pair<Double, Double>
     {
-        return activate(dot(weight, input)+bias)
+        return dot(weight, input)+bias to activate(dot(weight, input)+bias)
     }
 
     override fun equals(other: Any?): Boolean

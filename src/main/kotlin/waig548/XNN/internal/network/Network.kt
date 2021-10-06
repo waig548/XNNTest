@@ -3,6 +3,11 @@ package waig548.XNN.internal.network
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import waig548.XNN.internal.functions.ActivationFunction
+import waig548.XNN.internal.utils.add
+import waig548.XNN.internal.utils.addMatrix
+import waig548.XNN.internal.utils.pow
+import waig548.XNN.internal.utils.scale
+import waig548.XNN.internal.utils.sub
 import kotlin.random.Random
 
 @Serializable//(with = Network.Companion::class)
@@ -36,14 +41,17 @@ class Network private constructor(
     }
     override val size get() = layers.size
 
-    override fun iterate(input: List<Double>, desired: List<Double>)
+    fun iterate(input: List<Double>, desired: List<Double>): List<Double>
     {
-        super.iterate(input, desired)
-        if(training)
-            backprop(desired)
+        x = input
+        y = desired
+        output = forward(x)
+        return output
+        //if(training)
+        //    backprop(input, desired)
     }
 
-    override fun forward(input: List<Double>): List<Double>
+    fun forward(input: List<Double>): List<Double>
     {
         var curData = input
         val iterator = layers.iterator()
@@ -52,13 +60,68 @@ class Network private constructor(
         return curData
     }
 
-    override fun backprop(desired: List<Double>): List<Double>
+    fun backprop(input: List<Double>, desired: List<Double>): List<Pair<List<List<Double>>, List<Double>>>
     {
+        iterate(input, desired)
         val iterator = layers.reversed().iterator()
         var cur = desired
+        val d = mutableListOf<Pair<List<List<Double>>, List<Double>>>()
         while(iterator.hasNext())
-            cur = iterator.next().backprop(cur)
-        return cur
+        {
+            val tmp = iterator.next().backprop(cur)
+            cur = tmp.first
+            d.add(tmp.second)
+        }
+        return d.reversed()
+    }
+
+    fun SGD(trainingData: List<Pair<List<Double>, List<Double>>>, batchSize: Int, eta: Double, testData: List<Pair<List<Double>, List<Double>>>? = null)
+    {
+        val trainChunks = trainingData.shuffled().chunked(batchSize)
+        for((i, v) in trainChunks.withIndex())
+        {
+            //model.iterate(List(28 * 28) {1.0}, List(10) {0.0})
+            println("Epoch ${i + 1} of ${trainChunks.size} started")
+            updateBatch(v, eta)
+
+            if(testData!=null)
+            {
+                var diff = 0.0
+                var success = 0
+                for((x, y) in testData.shuffled().slice(0..1000))
+                {
+                    diff += pow(sub(iterate(x, y), y), 2.0).sum()
+                    val prediction = output.withIndex().map {it.index to it.value}.filter {it.second >= 0.80}
+                    if(prediction.size == 1 && prediction.first().first == y.indexOf(1.0))
+                        success++
+                }
+                println("Test ${i+1} of ${trainChunks.size}, avg. diff: ${diff/1000}, success rate: ${success/1000.0*100}%")
+            }
+        }
+        println("Epoch ${trainChunks.size} ended.")
+    }
+
+    fun updateBatch(batch: List<Pair<List<Double>, List<Double>>>, eta: Double)
+    {
+        val dW = MutableList(size) {id-> List(layers[id].size) {List(layers[id].inputSize) {0.0} } }
+        val dB = MutableList(size) {id-> List(layers[id].size) {0.0} }
+        for((x, y) in batch)
+        {
+            val d = backprop(x, y)
+            for((i, v) in d.withIndex())
+            {
+                dW[i]=addMatrix(dW[i], v.first)
+                dB[i]=add(dB[i], v.second)
+            }
+        }
+        for((i, l) in layers.withIndex())
+        {
+            for((j, n) in l.neurons.withIndex())
+            {
+                n.bias=(n.bias-eta/batch.size*dB[i][j]).takeIf {!it.isNaN()} ?: 0.0
+                n.weight=scale(sub(n.weight, dW[i][j]), eta/batch.size).map {it.takeIf {num-> !num.isNaN()} ?: 0.0}.toMutableList()
+            }
+        }
     }
 
     fun addLayer(index: Int = size)

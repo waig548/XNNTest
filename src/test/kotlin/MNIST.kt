@@ -23,18 +23,18 @@ import kotlin.random.Random
 @TestMethodOrder(MethodOrderer.MethodName::class)
 class MNIST
 {
-    lateinit var trainSet: List<Pair<List<Double>, List<Double>>>
-    lateinit var testSet: List<Pair<List<Double>, List<Double>>>
+    private val relu = true
+
     @Test
     @Disabled
     fun `1-Build and save model`()
     {
         val model = Network(
-            "MNIST",
+            "MNIST${if(relu) "-ReLU" else ""}",
             Random(System.currentTimeMillis()),
             28*28,
-            listOf(16, 16, 10),
-            Sigmoid
+            listOf(30, 30, 10),
+            if(relu) ReLU else Sigmoid
         )
         NetworkSerializer.serializeToFile(model, "mnist")
     }
@@ -70,28 +70,39 @@ class MNIST
     fun `3-Load and train`()
     {
         val test = false
-        val model = NetworkSerializer.deserializeFromFile("mnist/MNIST.model")
+        val model = NetworkSerializer.deserializeFromFile("mnist/MNIST${if(relu) "-ReLU" else ""}.model")
         val trainSet = DataSetSerializer.deserializeFromFile("mnist/MNIST-train.data")
         val testSet = DataSetSerializer.deserializeFromFile("mnist/MNIST-test.data")
 
+        model.SGD(
+            trainSet.map {Pair(it.input, it.output)},
+            500,
+            50.0,
+            testSet.map {Pair(it.input, it.output)}
+        )
+/*
         val trainChunks = trainSet.shuffled().chunked(100)
         model.training = true
         for((i, v) in trainChunks.withIndex())
         {
+            model.iterate(List(28*28) {1.0}, List(10) {0.0})
             println("Epoch ${i+1} of ${trainChunks.size} started")
             val o = mutableListOf<List<Double>>()
             for(e in v)
+            {
                 model.iterate(e.input, e.output)
+            }
             var diff = 0.0
             if(test)
             {
-                for(e in testSet.shuffled().slice(0..100))
+                for(e in testSet.shuffled().slice(0..1000))
                     diff += pow(sub(model.forward(e.input), e.output),2.0).sum()
                 println("Test ${i+1} of ${trainChunks.size}, avg. diff: ${diff/100}")
             }
         }
 
-        println("Epoch ${trainChunks.size} ended.")
+
+        println("Epoch ${trainChunks.size} ended.")*/
         NetworkSerializer.serializeToFile(model)
 
     }
@@ -99,16 +110,20 @@ class MNIST
     @Test
     fun `4-Load and test`()
     {
-        val model = NetworkSerializer.deserializeFromFile("mnist/MNIST.model")
+        val model = NetworkSerializer.deserializeFromFile("mnist/MNIST${if(relu) "-ReLU" else ""}.model")
         val testSet = DataSetSerializer.deserializeFromFile("mnist/MNIST-test.data")
         var tmp = 0.0
+        var success = 0
         for(e in testSet)
         {
             model.iterate(e.input, e.output)
             val diff=sub(model.output, e.output)
             tmp += diff.sum()
+            val prediction = model.output.withIndex().map {it.index to it.value}.filter {it.second>=0.80}
+            if(prediction.size == 1 && prediction.first().first == e.output.indexOf(1.0))
+                success++
         }
-        println("Avg. diff = ${tmp/testSet.size}")
+        println("Avg. diff = ${tmp/testSet.size}, success = $success")
         NetworkSerializer.serializeToFile(model)
     }
 

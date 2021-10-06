@@ -6,6 +6,8 @@ import waig548.XNN.internal.functions.Sigmoid
 import waig548.XNN.internal.network.Network
 import waig548.XNN.internal.network.Neuron
 import waig548.XNN.internal.utils.data.NetworkSerializer
+import java.io.FileInputStream
+import java.util.zip.GZIPInputStream
 import kotlin.random.Random
 
 class Tests
@@ -45,6 +47,13 @@ class Tests
             {"weight":[0.0,0.0],"bias":0.0,"activate":"ReLU"}
         """.trimIndent()
         val n = Json.decodeFromString<Neuron>(s)
+        println()
+    }
+
+    @Test
+    fun `Test0 read model`()
+    {
+        val s = GZIPInputStream(FileInputStream("mnist/MNIST.model")).bufferedReader().lines().toArray()
         println()
     }
 }

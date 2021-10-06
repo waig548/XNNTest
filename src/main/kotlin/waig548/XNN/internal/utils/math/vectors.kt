@@ -1,5 +1,7 @@
 package waig548.XNN.internal.utils
 
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.pow
 
 fun add(a: List<Double>, b: List<Double>): List<Double>
@@ -54,6 +56,16 @@ fun matrixMul(a: List<Double>, b: List<Double>): List<List<Double>>
 fun transpose(m: List<List<Double>>): List<List<Double>>
 {
     return List(m[0].size) {i -> List(m.size) {j-> m[j][i]} }
+}
+
+fun clamp(a: List<Double>, lowerBound: Double, upperBound: Double): List<Double>
+{
+    return a.map {min(max(lowerBound, it), upperBound)}
+}
+
+fun addMatrix(a: List<List<Double>>, b: List<List<Double>>): List<List<Double>>
+{
+    return a.zip(b).map {add(it.first, it.second)}
 }
 
 /* dunno how but just in case
