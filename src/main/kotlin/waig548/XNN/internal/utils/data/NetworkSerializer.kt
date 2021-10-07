@@ -16,7 +16,7 @@ object NetworkSerializer
     fun serializeToFile(obj: Network, path: String? = null)
     {
         GZIPOutputStream(FileOutputStream("${path?.let {"$it/"} ?: ""}${obj.name}.model")).use {Json.encodeToStream(obj, it)}
-        println("Network saved to ${obj.name}.model")
+        println("Network saved to $path/${obj.name}.model")
     }
 
     fun deserializeFromFile(path: String): Network
