@@ -5,9 +5,12 @@ import kotlinx.serialization.Transient
 import waig548.XNN.internal.functions.ActivationFunction
 import waig548.XNN.internal.utils.add
 import waig548.XNN.internal.utils.addMatrix
+import waig548.XNN.internal.utils.math.sum
+import waig548.XNN.internal.utils.math.unlimited
 import waig548.XNN.internal.utils.pow
 import waig548.XNN.internal.utils.scale
 import waig548.XNN.internal.utils.sub
+import java.math.BigDecimal
 import kotlin.random.Random
 
 @Serializable//(with = Network.Companion::class)
@@ -41,7 +44,7 @@ class Network private constructor(
     }
     override val size get() = layers.size
 
-    fun iterate(input: List<Double>, desired: List<Double>): List<Double>
+    fun iterate(input: List<BigDecimal>, desired: List<BigDecimal>): List<BigDecimal>
     {
         x = input
         y = desired
@@ -51,7 +54,7 @@ class Network private constructor(
         //    backprop(input, desired)
     }
 
-    fun forward(input: List<Double>): List<Double>
+    fun forward(input: List<BigDecimal>): List<BigDecimal>
     {
         var curData = input
         val iterator = layers.iterator()
@@ -60,12 +63,12 @@ class Network private constructor(
         return curData
     }
 
-    fun backprop(input: List<Double>, desired: List<Double>): List<Pair<List<List<Double>>, List<Double>>>
+    fun backprop(input: List<BigDecimal>, desired: List<BigDecimal>): List<Pair<List<List<BigDecimal>>, List<BigDecimal>>>
     {
         iterate(input, desired)
         val iterator = layers.reversed().iterator()
         var cur = desired
-        val d = mutableListOf<Pair<List<List<Double>>, List<Double>>>()
+        val d = mutableListOf<Pair<List<List<BigDecimal>>, List<BigDecimal>>>()
         while(iterator.hasNext())
         {
             val tmp = iterator.next().backprop(cur)
@@ -75,7 +78,7 @@ class Network private constructor(
         return d.reversed()
     }
 
-    fun SGD(trainingData: List<Pair<List<Double>, List<Double>>>, batchSize: Int, eta: Double, testData: List<Pair<List<Double>, List<Double>>>? = null)
+    fun SGD(trainingData: List<Pair<List<BigDecimal>, List<BigDecimal>>>, batchSize: Int, eta: BigDecimal, testData: List<Pair<List<BigDecimal>, List<BigDecimal>>>? = null)
     {
         val trainChunks = trainingData.shuffled().chunked(batchSize)
         for((i, v) in trainChunks.withIndex())
@@ -86,25 +89,25 @@ class Network private constructor(
 
             if(testData!=null)
             {
-                var diff = 0.0
+                var diff = 0.0.toBigDecimal()
                 var success = 0
                 for((x, y) in testData.shuffled().slice(0..1000))
                 {
-                    diff += pow(sub(iterate(x, y), y), 2.0).sum()
-                    val prediction = output.withIndex().map {it.index to it.value}.filter {it.second >= 0.80}
-                    if(prediction.size == 1 && prediction.first().first == y.indexOf(1.0))
+                    diff += pow(sub(iterate(x, y), y), 2).sum()
+                    val prediction = output.withIndex().map {it.index to it.value}.filter {it.second >= 0.80.toBigDecimal()}
+                    if(prediction.size == 1 && prediction.first().first == y.indexOf(1.0.toBigDecimal()))
                         success++
                 }
-                println("Test ${i+1} of ${trainChunks.size}, avg. diff: ${diff/1000}, success rate: ${success/1000.0*100}%")
+                println("Test ${i+1} of ${trainChunks.size}, avg. diff: ${diff/(1000).toBigDecimal()}, success rate: ${success/1000.0*100}%")
             }
         }
         println("Epoch ${trainChunks.size} ended.")
     }
 
-    fun updateBatch(batch: List<Pair<List<Double>, List<Double>>>, eta: Double)
+    fun updateBatch(batch: List<Pair<List<BigDecimal>, List<BigDecimal>>>, eta: BigDecimal)
     {
-        val dW = MutableList(size) {id-> List(layers[id].size) {List(layers[id].inputSize) {0.0} } }
-        val dB = MutableList(size) {id-> List(layers[id].size) {0.0} }
+        val dW = MutableList(size) {id-> List(layers[id].size) {List(layers[id].inputSize) {BigDecimal.ZERO.unlimited()} } }
+        val dB = MutableList(size) {id-> List(layers[id].size) {BigDecimal.ZERO.unlimited()} }
         for((x, y) in batch)
         {
             val d = backprop(x, y)
@@ -118,8 +121,8 @@ class Network private constructor(
         {
             for((j, n) in l.neurons.withIndex())
             {
-                n.bias=(n.bias-eta/batch.size*dB[i][j]).takeIf {!it.isNaN()} ?: 0.0
-                n.weight=scale(sub(n.weight, dW[i][j]), eta/batch.size).map {it.takeIf {num-> !num.isNaN()} ?: 0.0}.toMutableList()
+                n.bias=(n.bias-eta/batch.size.toBigDecimal()*dB[i][j])
+                n.weight=scale(sub(n.weight, dW[i][j]), eta/batch.size.toBigDecimal()).toMutableList()
             }
         }
     }

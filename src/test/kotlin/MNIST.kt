@@ -1,5 +1,5 @@
+import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import kotlinx.serialization.json.encodeToStream
 import org.jetbrains.kotlin.konan.file.use
@@ -11,10 +11,15 @@ import waig548.XNN.internal.functions.ReLU
 import waig548.XNN.internal.functions.Sigmoid
 import waig548.XNN.internal.network.Network
 import waig548.XNN.internal.utils.data.NetworkSerializer
-import waig548.XNN.internal.utils.pow
+import waig548.XNN.internal.utils.data.json
+import waig548.XNN.internal.utils.math.bdFromDouble
+import waig548.XNN.internal.utils.math.bdFromInt
+import waig548.XNN.internal.utils.math.sum
+import waig548.XNN.internal.utils.math.unlimited
 import waig548.XNN.internal.utils.sub
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.math.BigDecimal
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 import kotlin.random.Random
@@ -23,7 +28,7 @@ import kotlin.random.Random
 @TestMethodOrder(MethodOrderer.MethodName::class)
 class MNIST
 {
-    private val relu = true
+    private val relu = false
 
     @Test
     @Disabled
@@ -33,7 +38,7 @@ class MNIST
             "MNIST${if(relu) "-ReLU" else ""}",
             Random(System.currentTimeMillis()),
             28*28,
-            listOf(30, 30, 10),
+            listOf(16, 16, 10),
             if(relu) ReLU else Sigmoid
         )
         NetworkSerializer.serializeToFile(model, "mnist")
@@ -45,19 +50,20 @@ class MNIST
     {
         val rawTrainImages = GZIPInputStream(FileInputStream("mnist/train-images-idx3-ubyte.gz")).use {it.readBytes()}
         val rawTrainLabels = GZIPInputStream(FileInputStream("mnist/train-labels-idx1-ubyte.gz")).use {it.readBytes()}
-        val rawTestImages = GZIPInputStream(FileInputStream("mnist/t10k-images-idx3-ubyte.gz")).use {it.readBytes()}
-        val rawTestLabels = GZIPInputStream(FileInputStream("mnist/t10k-labels-idx1-ubyte.gz")).use {it.readBytes()}
 
-        val strainSet = rawTrainImages.drop(16).map {it.toUByte().toDouble()/255.0}.chunked(28*28).zip(rawTrainLabels.drop(8).map {List(10){index -> if(index==it.toInt()) 1.0 else 0.0 } })
-        val stestSet = rawTestImages.drop(16).map {it.toUByte().toDouble()/255.0}.chunked(28*28).zip(rawTestLabels.drop(8).map {List(10){index -> if(index==it.toInt()) 1.0 else 0.0 } })
+        val strainSet = rawTrainImages.drop(16).map {bdFromInt(it.toUByte().toInt()).setScale(10) / bdFromDouble(255.0).setScale(10)}.chunked(28*28).zip(rawTrainLabels.drop(8).map {List(10){index -> if(index==it.toInt()) BigDecimal.ONE.unlimited() else BigDecimal.ZERO.unlimited() } })
         val trainSet = DataSet(
-            "MNIST-train",
+            "MNIST-train-bd",
             strainSet.size,
             strainSet.map {DataSet.Entry(it.first, it.second)}
         )
         DataSetSerializer.serializeToFile(trainSet, "mnist")
+        //System.gc()
+        val rawTestImages = GZIPInputStream(FileInputStream("mnist/t10k-images-idx3-ubyte.gz")).use {it.readBytes()}
+        val rawTestLabels = GZIPInputStream(FileInputStream("mnist/t10k-labels-idx1-ubyte.gz")).use {it.readBytes()}
+        val stestSet = rawTestImages.drop(16).map {bdFromInt(it.toUByte().toInt()) / bdFromDouble(255.0)}.chunked(28*28).zip(rawTestLabels.drop(8).map {List(10){index -> if(index==it.toInt()) BigDecimal.ONE.unlimited() else BigDecimal.ZERO.unlimited() } })
         val testSet = DataSet(
-            "MNIST-test",
+            "MNIST-test-bd",
             stestSet.size,
             stestSet.map {DataSet.Entry(it.first, it.second)}
         )
@@ -71,14 +77,14 @@ class MNIST
     {
         val test = false
         val model = NetworkSerializer.deserializeFromFile("mnist/MNIST${if(relu) "-ReLU" else ""}.model")
-        val trainSet = DataSetSerializer.deserializeFromFile("mnist/MNIST-train.data")
-        val testSet = DataSetSerializer.deserializeFromFile("mnist/MNIST-test.data")
+        val trainSet = DataSetSerializer.deserializeFromFile("mnist/MNIST-train-bd.data")
+        //val testSet = DataSetSerializer.deserializeFromFile("mnist/MNIST-test-bd.data")
 
         model.SGD(
             trainSet.map {Pair(it.input, it.output)},
-            500,
-            50.0,
-            testSet.map {Pair(it.input, it.output)}
+            100,
+            bdFromDouble(3.0),
+            //testSet.map {Pair(it.input, it.output)}
         )
 /*
         val trainChunks = trainSet.shuffled().chunked(100)
@@ -87,7 +93,7 @@ class MNIST
         {
             model.iterate(List(28*28) {1.0}, List(10) {0.0})
             println("Epoch ${i+1} of ${trainChunks.size} started")
-            val o = mutableListOf<List<Double>>()
+            val o = mutableListOf<List<BigDecimal>>()
             for(e in v)
             {
                 model.iterate(e.input, e.output)
@@ -103,7 +109,7 @@ class MNIST
 
 
         println("Epoch ${trainChunks.size} ended.")*/
-        NetworkSerializer.serializeToFile(model)
+        NetworkSerializer.serializeToFile(model, "mnist")
 
     }
 
@@ -111,20 +117,20 @@ class MNIST
     fun `4-Load and test`()
     {
         val model = NetworkSerializer.deserializeFromFile("mnist/MNIST${if(relu) "-ReLU" else ""}.model")
-        val testSet = DataSetSerializer.deserializeFromFile("mnist/MNIST-test.data")
-        var tmp = 0.0
+        val testSet = DataSetSerializer.deserializeFromFile("mnist/MNIST-test-bd.data")
+        var tmp = BigDecimal.ZERO.setScale(100)
         var success = 0
         for(e in testSet)
         {
             model.iterate(e.input, e.output)
             val diff=sub(model.output, e.output)
             tmp += diff.sum()
-            val prediction = model.output.withIndex().map {it.index to it.value}.filter {it.second>=0.80}
-            if(prediction.size == 1 && prediction.first().first == e.output.indexOf(1.0))
+            val prediction = model.output.withIndex().map {it.index to it.value}.filter {it.second>=0.80.toBigDecimal()}
+            if(prediction.size == 1 && prediction.first().first == e.output.indexOfFirst {it.toInt() == BigDecimal.ONE.toInt()})
                 success++
         }
-        println("Avg. diff = ${tmp/testSet.size}, success = $success")
-        NetworkSerializer.serializeToFile(model)
+        println("Avg. diff = ${tmp/testSet.size.toBigDecimal()}, success = $success")
+        NetworkSerializer.serializeToFile(model, "mnist")
     }
 
     @Serializable
@@ -156,8 +162,8 @@ class MNIST
 
         @Serializable
         data class Entry(
-            val input: List<Double>,
-            val output: List<Double>
+            val input: List<@Contextual BigDecimal>,
+            val output: List<@Contextual BigDecimal>
         )
     }
 
@@ -165,13 +171,13 @@ class MNIST
     {
         fun serializeToFile(obj: DataSet, path: String? = null)
         {
-            GZIPOutputStream(FileOutputStream("${path?.let {"$it/"} ?: ""}${obj.name}.data")).use {Json.encodeToStream(obj, it)}
+            GZIPOutputStream(FileOutputStream("${path?.let {"$it/"} ?: ""}${obj.name}.data")).use {json.encodeToStream(obj, it)}
             println("Data saved to ${obj.name}.data")
         }
 
         fun deserializeFromFile(path: String): DataSet
         {
-            val obj = GZIPInputStream(FileInputStream(path)).use {Json.decodeFromStream(DataSet.serializer(), it)}
+            val obj = GZIPInputStream(FileInputStream(path)).use {json.decodeFromStream(DataSet.serializer(), it)}
             println("Data loaded from $path")
             return obj
         }

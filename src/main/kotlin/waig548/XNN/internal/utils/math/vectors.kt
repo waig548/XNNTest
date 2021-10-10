@@ -1,75 +1,74 @@
 package waig548.XNN.internal.utils
 
-import kotlin.math.max
-import kotlin.math.min
-import kotlin.math.pow
+import waig548.XNN.internal.utils.math.sum
+import java.math.BigDecimal
 
-fun add(a: List<Double>, b: List<Double>): List<Double>
+fun add(a: List<BigDecimal>, b: List<BigDecimal>): List<BigDecimal>
 {
     return a.zip(b).map {it.first+it.second}
 }
 
-fun sub(a: List<Double>, b: List<Double>): List<Double>
+fun sub(a: List<BigDecimal>, b: List<BigDecimal>): List<BigDecimal>
 {
     return a.zip(b).map {it.first-it.second}
 }
 
-fun mul(a: List<Double>, b: List<Double>): List<Double>
+fun mul(a: List<BigDecimal>, b: List<BigDecimal>): List<BigDecimal>
 {
     return a.zip(b).map {it.first*it.second}
 }
 
-fun div(a: List<Double>, b: List<Double>): List<Double>
+fun div(a: List<BigDecimal>, b: List<BigDecimal>): List<BigDecimal>
 {
     return a.zip(b).map {it.first/it.second}
 }
 
-fun pow(a: List<Double>, b: Double): List<Double>
+fun pow(a: List<BigDecimal>, b: Int): List<BigDecimal>
 {
     return a.map {it.pow(b)}
 }
-fun scale(a: List<Double>, b: Double): List<Double>
+fun scale(a: List<BigDecimal>, b: BigDecimal): List<BigDecimal>
 {
     return a.map {it*b}
 }
 
-fun dot(a: List<Double>, b: List<Double>): Double
+fun dot(a: List<BigDecimal>, b: List<BigDecimal>): BigDecimal
 {
     return a.zip(b).map {it.first*it.second}.sum()
 }
 
-fun applyFunction(function: ((Double) -> Double), a: List<Double>): List<Double>
+fun applyFunction(function: ((BigDecimal) -> BigDecimal), a: List<BigDecimal>): List<BigDecimal>
 {
     return a.map(function)
 }
 
-fun applyMatrix(m: List<List<Double>>, a: List<Double>): List<Double>
+fun applyMatrix(m: List<List<BigDecimal>>, a: List<BigDecimal>): List<BigDecimal>
 {
     return m.map {dot(it, a)}
 }
 
-fun matrixMul(a: List<Double>, b: List<Double>): List<List<Double>>
+fun matrixMul(a: List<BigDecimal>, b: List<BigDecimal>): List<List<BigDecimal>>
 {
     return List(a.size) {scale(b, a[it])}
 }
 
-fun transpose(m: List<List<Double>>): List<List<Double>>
+fun transpose(m: List<List<BigDecimal>>): List<List<BigDecimal>>
 {
     return List(m[0].size) {i -> List(m.size) {j-> m[j][i]} }
 }
 
-fun clamp(a: List<Double>, lowerBound: Double, upperBound: Double): List<Double>
+fun clamp(a: List<BigDecimal>, lowerBound: BigDecimal, upperBound: BigDecimal): List<BigDecimal>
 {
-    return a.map {min(max(lowerBound, it), upperBound)}
+    return a.map {lowerBound.min(upperBound.max(it))}
 }
 
-fun addMatrix(a: List<List<Double>>, b: List<List<Double>>): List<List<Double>>
+fun addMatrix(a: List<List<BigDecimal>>, b: List<List<BigDecimal>>): List<List<BigDecimal>>
 {
     return a.zip(b).map {add(it.first, it.second)}
 }
 
 /* dunno how but just in case
-fun cross(a: List<Double>, b: List<Double>)
+fun cross(a: List<BigDecimal>, b: List<BigDecimal>)
 {
 
 }

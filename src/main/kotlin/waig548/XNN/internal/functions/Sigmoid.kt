@@ -1,17 +1,20 @@
 package waig548.XNN.internal.functions
 
+import waig548.XNN.internal.utils.math.bdFromDouble
+import waig548.XNN.internal.utils.math.unlimited
+import java.math.BigDecimal
 import kotlin.math.exp
 
 object Sigmoid: ActivationFunction
 {
     override val name: String get() = this::class.java.simpleName
-    override fun invoke(z: Double): Double
+    override fun invoke(z: BigDecimal): BigDecimal
     {
-        return 1.0/(1.0+exp(-z))
+        return BigDecimal.ONE.unlimited()/ bdFromDouble(1.0+exp(-z.toDouble()))
     }
 
-    override fun derivative(z: Double): Double
+    override fun derivative(z: BigDecimal): BigDecimal
     {
-        return this(z)*(1-this(z))
+        return this(z)*(BigDecimal.ONE.unlimited()-this(z))
     }
 }

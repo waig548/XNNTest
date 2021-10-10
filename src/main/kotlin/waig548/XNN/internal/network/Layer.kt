@@ -7,11 +7,14 @@ import waig548.XNN.internal.utils.add
 import waig548.XNN.internal.utils.applyFunction
 import waig548.XNN.internal.utils.applyMatrix
 import waig548.XNN.internal.utils.clamp
+import waig548.XNN.internal.utils.math.bdFromDouble
+import waig548.XNN.internal.utils.math.unlimited
 import waig548.XNN.internal.utils.matrixMul
 import waig548.XNN.internal.utils.mul
 import waig548.XNN.internal.utils.scale
 import waig548.XNN.internal.utils.sub
 import waig548.XNN.internal.utils.transpose
+import java.math.BigDecimal
 import kotlin.random.Random
 import kotlin.random.asJavaRandom
 
@@ -30,32 +33,39 @@ class Layer private constructor(
         size: Int,
         inputSize: Int,
         activationFunction: ActivationFunction
-    ): this(id, inputSize, activationFunction, MutableList(size) {Neuron(MutableList(inputSize) {/*if(id==0) 0.0 else */rand.asJavaRandom().nextGaussian()}, rand.asJavaRandom().nextGaussian(), activationFunction)})
+    ): this(id, inputSize, activationFunction, MutableList(size) {
+        Neuron(
+            MutableList(inputSize) {
+                /*if(id==0) 0.0 else */bdFromDouble(rand.asJavaRandom().nextGaussian())},
+            bdFromDouble(rand.asJavaRandom().nextGaussian()),
+            activationFunction
+        )
+    })
 
 
     //var previousLayerID: Int? = null
 
     //private var previousLayer: Layer? = null
     @Transient var nextLayer: Layer? = null
-    @Transient var zs = listOf<Double>()
-    @Transient var clamped: List<Double> = listOf()
+    @Transient var zs = listOf<BigDecimal>()
+    @Transient var clamped: List<BigDecimal> = listOf()
     override val size get() = neurons.size
 
-    fun forward(input: List<Double>): List<Double>
+    fun forward(input: List<BigDecimal>): List<BigDecimal>
     {
         x = input
         val o = neurons.map {it.forward(input)}.unzip()
         zs = o.first; output = o.second
-        clamped = clamp(output, 0.0, 1.0)
+        clamped = clamp(output, BigDecimal.ZERO.unlimited(), BigDecimal.ONE.unlimited())
         return clamped
     }
 
-    fun backprop(desired: List<Double>): Pair<List<Double>, Pair<List<List<Double>>, List<Double>>>
+    fun backprop(desired: List<BigDecimal>): Pair<List<BigDecimal>, Pair<List<List<BigDecimal>>, List<BigDecimal>>>
     {
         //if(id==0)
         //    return x
         y = desired
-        val db = mul(scale(sub(output, desired), 1.0), applyFunction(activationFunction::derivative, zs))
+        val db = mul(scale(sub(clamped, desired), BigDecimal.ONE.unlimited()), applyFunction(activationFunction::derivative, zs))
         val dW = matrixMul(db, x)
         val da = applyMatrix(transpose(neurons.map {it.weight.toList()}), db)
         /*for((i, n) in neurons.withIndex())
@@ -71,13 +81,13 @@ class Layer private constructor(
         neurons.add(
             index,
             Neuron(
-                MutableList(inputSize) {/*if(id==0) 0.0 else */rand.asJavaRandom().nextGaussian()},
-                rand.asJavaRandom().nextGaussian(),
+                MutableList(inputSize) {/*if(id==0) 0.0 else */bdFromDouble(rand.asJavaRandom().nextGaussian())},
+                bdFromDouble(rand.asJavaRandom().nextGaussian()),
                 activationFunction
             )
         )
         nextLayer?.inputSize=size
-        nextLayer?.neurons?.forEach {it.weight.add(index, rand.asJavaRandom().nextGaussian())}
+        nextLayer?.neurons?.forEach {it.weight.add(index, bdFromDouble(rand.asJavaRandom().nextGaussian()))}
     }
 
     fun removeNeuron(index: Int)

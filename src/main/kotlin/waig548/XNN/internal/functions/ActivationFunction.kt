@@ -7,14 +7,15 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import java.math.BigDecimal
 
 @Serializable(with = ActivationFunction.Companion::class)
 interface ActivationFunction
 {
     val name: String
 
-    operator fun invoke(z: Double): Double
-    fun derivative(z: Double): Double
+    operator fun invoke(z: BigDecimal): BigDecimal
+    fun derivative(z: BigDecimal): BigDecimal
 
     companion object: KSerializer<ActivationFunction>
     {
