@@ -35,7 +35,7 @@ fun scale(a: List<Double>, b: Double): List<Double>
 
 fun dot(a: List<Double>, b: List<Double>): Double
 {
-    return a.zip(b).map {it.first*it.second}.sum()
+    return a.zip(b).sumOf { it.first*it.second }
 }
 
 fun applyFunction(function: ((Double) -> Double), a: List<Double>): List<Double>
@@ -50,7 +50,12 @@ fun applyMatrix(m: List<List<Double>>, a: List<Double>): List<Double>
 
 fun matrixMul(a: List<Double>, b: List<Double>): List<List<Double>>
 {
-    return List(a.size) {scale(b, a[it])}
+    return transpose(List(b.size) {scale(a, b[it])})
+}
+
+fun matrixMul2(a: List<Double>, b: List<Double>): List<List<Double>>
+{
+    return transpose(List(a.size) { scale(b, a[it])})
 }
 
 fun transpose(m: List<List<Double>>): List<List<Double>>

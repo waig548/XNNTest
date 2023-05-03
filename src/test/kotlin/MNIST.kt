@@ -26,7 +26,7 @@ class MNIST
     private val relu = true
 
     @Test
-    @Disabled
+    //@Disabled
     fun `1-Build and save model`()
     {
         val model = Network(
@@ -40,7 +40,7 @@ class MNIST
     }
 
     @Test
-    @Disabled
+    //@Disabled
     fun `2-Sanitize data`()
     {
         val rawTrainImages = GZIPInputStream(FileInputStream("mnist/train-images-idx3-ubyte.gz")).use {it.readBytes()}
@@ -77,7 +77,7 @@ class MNIST
         model.SGD(
             trainSet.map {Pair(it.input, it.output)},
             500,
-            50.0,
+            0.1,
             testSet.map {Pair(it.input, it.output)}
         )
 /*
@@ -103,7 +103,7 @@ class MNIST
 
 
         println("Epoch ${trainChunks.size} ended.")*/
-        NetworkSerializer.serializeToFile(model)
+        NetworkSerializer.serializeToFile(model, "mnist")
 
     }
 
@@ -124,7 +124,9 @@ class MNIST
                 success++
         }
         println("Avg. diff = ${tmp/testSet.size}, success = $success")
-        NetworkSerializer.serializeToFile(model)
+        val model2 = NetworkSerializer.deserializeFromFile("mnist/MNIST${if(relu) "-ReLU" else ""}.model")
+        assert(model==model2)
+        NetworkSerializer.serializeToFile(model, "mnist")
     }
 
     @Serializable

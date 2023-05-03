@@ -38,6 +38,7 @@ class Network private constructor(
                 layer.nextLayerID = index+1
             }
         }
+        layers.last().isLastLayer=true
     }
     override val size get() = layers.size
 
@@ -75,14 +76,14 @@ class Network private constructor(
         return d.reversed()
     }
 
-    fun SGD(trainingData: List<Pair<List<Double>, List<Double>>>, batchSize: Int, eta: Double, testData: List<Pair<List<Double>, List<Double>>>? = null)
+    fun SGD(trainingData: List<Pair<List<Double>, List<Double>>>, batchSize: Int, learnRate: Double, testData: List<Pair<List<Double>, List<Double>>>? = null)
     {
-        val trainChunks = trainingData.shuffled().chunked(batchSize)
+        val trainChunks = trainingData.chunked(batchSize)
         for((i, v) in trainChunks.withIndex())
         {
             //model.iterate(List(28 * 28) {1.0}, List(10) {0.0})
             println("Epoch ${i + 1} of ${trainChunks.size} started")
-            updateBatch(v, eta)
+            updateBatch(v, learnRate)
 
             if(testData!=null)
             {
@@ -101,7 +102,7 @@ class Network private constructor(
         println("Epoch ${trainChunks.size} ended.")
     }
 
-    fun updateBatch(batch: List<Pair<List<Double>, List<Double>>>, eta: Double)
+    fun updateBatch(batch: List<Pair<List<Double>, List<Double>>>, learnRate: Double)
     {
         val dW = MutableList(size) {id-> List(layers[id].size) {List(layers[id].inputSize) {0.0} } }
         val dB = MutableList(size) {id-> List(layers[id].size) {0.0} }
@@ -118,8 +119,8 @@ class Network private constructor(
         {
             for((j, n) in l.neurons.withIndex())
             {
-                n.bias=(n.bias-eta/batch.size*dB[i][j]).takeIf {!it.isNaN()} ?: 0.0
-                n.weight=scale(sub(n.weight, dW[i][j]), eta/batch.size).map {it.takeIf {num-> !num.isNaN()} ?: 0.0}.toMutableList()
+                n.bias=(n.bias-learnRate*dB[i][j]).takeIf {!it.isNaN()} ?: 0.5
+                n.weight=scale(sub(n.weight, dW[i][j]), learnRate)/*.map {it.takeIf {num-> !num.isNaN()} ?: 0.5}*/.toMutableList()
             }
         }
     }

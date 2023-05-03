@@ -9,11 +9,11 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 
 @Serializable(with = ActivationFunction.Companion::class)
-interface ActivationFunction
+interface ActivationFunction: (Double) -> Double
 {
     val name: String
 
-    operator fun invoke(z: Double): Double
+    override operator fun invoke(z: Double): Double
     fun derivative(z: Double): Double
 
     companion object: KSerializer<ActivationFunction>
